@@ -1,24 +1,28 @@
+# Load environment variables from the local .env file.
+# Existing system environment variables take precedence.
 import os
+from pathlib import Path
+from dotenv import load_dotenv
 
+BASE_DIR = Path(__file__).resolve().parent
+
+load_dotenv(BASE_DIR / ".env")
 
 class Config:
-    """Base settings shared by every environment.
+    SECRET_KEY = os.environ.get("SECRET_KEY")
 
-    Values are read from environment variables so no secrets live in the code.
-    Member 2 will load them from a .env file (python-dotenv) on top of this.
-    """
+    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
 
-    SQLALCHEMY_DATABASE_URI = os.environ.get(
-        "DATABASE_URL",
-        "postgresql://postgres:postgres@localhost:5432/smartpesa_dev",
-    )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    SECRET_KEY = os.environ.get("SECRET_KEY", "dev-only-secret")
+
     JSON_SORT_KEYS = False
 
 
 class TestConfig(Config):
-    """In-memory SQLite so tests run without a PostgreSQL server."""
-
     TESTING = True
+
+    # Use an in-memory SQLite database for tests.
     SQLALCHEMY_DATABASE_URI = "sqlite:///:memory:"
+
+    # Testing does not require the development secret.
+    SECRET_KEY = "test-only-secret"
