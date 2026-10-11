@@ -1,0 +1,154 @@
+:root {
+  --sp-green-dark: #0a1f12;
+  --sp-green: #00d084;
+  --sp-green-hover: #00b874;
+  --sp-bg: #f4f8f5;
+  --sp-surface: #ffffff;
+  --sp-text: #17251c;
+  --sp-muted: #65746a;
+  --sp-border: #d8e3db;
+  --sp-danger: #b42318;
+  --sp-radius: 12px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--sp-bg);
+  color: var(--sp-text);
+  font-family: Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.sp-page {
+  width: min(100% - 2rem, 760px);
+  margin: 2rem auto;
+}
+
+.sp-page__header {
+  margin-bottom: 1.25rem;
+}
+
+.sp-page__eyebrow {
+  color: var(--sp-green-hover);
+  font-size: 0.8rem;
+  font-weight: bold;
+  text-transform: uppercase;
+}
+
+.sp-page__title {
+  margin: 0;
+  color: var(--sp-green-dark);
+  font-size: 2rem;
+}
+
+.sp-page__description {
+  color: var(--sp-muted);
+  line-height: 1.5;
+}
+
+.sp-card {
+  padding: 1.5rem;
+  border: 1px solid var(--sp-border);
+  border-radius: var(--sp-radius);
+  background: var(--sp-surface);
+  box-shadow: 0 8px 24px rgba(10, 31, 18, 0.08);
+}
+
+.sp-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.sp-field {
+  display: grid;
+  gap: 0.45rem;
+}
+
+.sp-label {
+  color: var(--sp-green-dark);
+  font-size: 0.92rem;
+  font-weight: bold;
+}
+
+.sp-input,
+.sp-select,
+.sp-textarea {
+  width: 100%;
+  min-height: 44px;
+  padding: 0.7rem 0.8rem;
+  border: 1px solid var(--sp-border);
+  border-radius: 9px;
+  background: white;
+  color: var(--sp-text);
+}
+
+.sp-input:focus,
+.sp-select:focus,
+.sp-textarea:focus {
+  outline: 2px solid var(--sp-green);
+  outline-offset: 2px;
+}
+
+.sp-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.sp-help {
+  color: var(--sp-muted);
+  font-size: 0.82rem;
+}
+
+.sp-error {
+  color: var(--sp-danger);
+  font-size: 0.82rem;
+}
+
+.sp-form__row {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.sp-button {
+  min-height: 44px;
+  padding: 0.7rem 1rem;
+  border: none;
+  border-radius: 9px;
+  background: var(--sp-green);
+  color: var(--sp-green-dark);
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.sp-button:hover {
+  background: var(--sp-green-hover);
+}
+
+.sp-alert {
+  padding: 0.8rem 1rem;
+  border-radius: 9px;
+  background: #e8f8f0;
+  color: var(--sp-green-dark);
+}
+
+@media (max-width: 560px) {
+  .sp-page {
+    width: calc(100% - 1rem);
+    margin: 1rem auto;
+  }
+
+  .sp-form__row {
+    grid-template-columns: 1fr;
+  }
+}
