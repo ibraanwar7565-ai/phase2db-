@@ -54,3 +54,23 @@ export const createTransaction = (transaction) =>
 
 export const deleteTransaction = (id) =>
   request(`/transactions/${id}`, { method: "DELETE" });
+
+export const getDashboard = (userId) =>
+  request(`/users/${userId}/dashboard`);
+
+export const getSettings = (userId) =>
+  request(`/users/${userId}/settings`);
+
+export const updateSettings = (userId, settings) =>
+  request(`/users/${userId}/settings`, { method: "PATCH", body: settings });
+
+export const createCategory = (userId, name) =>
+  request(`/users/${userId}/settings/categories`, {
+    method: "POST",
+    body: { name },
+  });
+
+export const deleteCategory = (userId, categoryId) =>
+  request(`/users/${userId}/settings/categories/${categoryId}`, {
+    method: "DELETE",
+  });

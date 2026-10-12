@@ -2,8 +2,8 @@
 
 Flask + PostgreSQL REST API for SmartPesa, a budget tracker for M-Pesa spending.
 
-> Status: **Days 1–2 (Member 1) done** — Flask app, SQLAlchemy models and the
-> migration pipeline are in place. CRUD routes come next (Days 3–4).
+> Status: Flask app, SQLAlchemy models, migrations, and dashboard/settings API
+> routes are available. Frontend pages remain a separate integration task.
 
 ## Tech stack
 
@@ -24,7 +24,10 @@ Flask + PostgreSQL REST API for SmartPesa, a budget tracker for M-Pesa spending.
     ├── extensions.py     # db + migrate objects, constraint naming rules
     ├── models.py         # User, Budget, Transaction
     ├── migrations/       # Alembic migration history
-    └── testing/          # pytest tests for the models
+    └── testing/         # pytest tests for models and API routes
+└── src/
+    └── services/
+        └── api.js        # Frontend API client and Vite API base URL
 ```
 
 ## Setup
@@ -69,6 +72,31 @@ Relationships:
 - Deleting a user deletes their budgets and transactions (`ON DELETE CASCADE`).
 - Deleting a budget keeps its transactions but clears their `budget_id`
   (`ON DELETE SET NULL`).
+
+User settings include a display currency (KES, USD, EUR, or GBP) and saved
+transaction categories. Categories already used by budgets are also included
+in the settings response.
+
+## Frontend API configuration
+
+The API client reads `VITE_API_URL`; its local default is
+`http://localhost:5000/api`. Configure that variable in the frontend's local
+Vite environment file when the API runs at a different address. The backend
+allows the origin configured by `FRONTEND_ORIGIN` (default
+`http://localhost:5173`); set it to the frontend's actual origin when needed.
+
+Member 3 dashboard/settings endpoints:
+
+| Method | Endpoint | Purpose |
+|---|---|---|
+| `GET` | `/api/users/<user_id>/dashboard` | User summary, budgets, and recent transactions |
+| `GET` | `/api/users/<user_id>/settings` | User currency and categories |
+| `PATCH` | `/api/users/<user_id>/settings` | Update the currency |
+| `POST` | `/api/users/<user_id>/settings/categories` | Add a category using `{"name": "Health"}` |
+| `DELETE` | `/api/users/<user_id>/settings/categories/<category_id>` | Remove a saved category |
+
+Run `flask db upgrade` from `server/` after updating to apply the user currency
+and category tables migration.
 
 ## Changing the models
 

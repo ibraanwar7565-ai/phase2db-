@@ -25,9 +25,13 @@ class User(db.Model):
     email = db.Column(db.String(120), nullable=False, unique=True)
     phone = db.Column(db.String(20), unique=True)
     password_hash = db.Column(db.String(255), nullable=False)
+    currency = db.Column(db.String(3), nullable=False, default="KES", server_default="KES")
     created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
 
     # Deleting a user deletes their budgets and transactions too.
+    categories = db.relationship(
+        "Category", back_populates="user", cascade="all, delete-orphan"
+    )
     budgets = db.relationship(
         "Budget", back_populates="user", cascade="all, delete-orphan"
     )
@@ -48,11 +52,41 @@ class User(db.Model):
             "name": self.name,
             "email": self.email,
             "phone": self.phone,
+            "currency": self.currency,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
     def __repr__(self):
         return f"<User {self.id} {self.email}>"
+
+
+class Category(db.Model):
+    """A transaction category configured by one user."""
+
+    __tablename__ = "categories"
+    __table_args__ = (
+        UniqueConstraint("user_id", "name", name="uq_categories_user_name"),
+    )
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name = db.Column(db.String(50), nullable=False)
+    created_at = db.Column(db.DateTime(timezone=True), nullable=False, default=utc_now)
+
+    user = db.relationship("User", back_populates="categories")
+
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "user_id": self.user_id,
+            "name": self.name,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+    def __repr__(self):
+        return f"<Category {self.id} {self.name}>"
 
 
 class Budget(db.Model):
