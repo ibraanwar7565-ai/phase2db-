@@ -1,4 +1,11 @@
+import os
+
 import pytest
+
+# app.py builds the default app on import, which requires these settings.
+# Tests use TestConfig (SQLite), so placeholders are enough when no .env exists.
+os.environ.setdefault("SECRET_KEY", "test-only-secret")
+os.environ.setdefault("DATABASE_URL", "sqlite:///:memory:")
 
 from app import create_app
 from config import TestConfig
