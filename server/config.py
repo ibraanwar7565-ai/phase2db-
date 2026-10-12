@@ -6,7 +6,9 @@ from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent
 
+# .env.example lives in the repo root, so look there; server/.env also works.
 load_dotenv(BASE_DIR / ".env")
+load_dotenv(BASE_DIR.parent / ".env")
 
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY")
