@@ -2,6 +2,9 @@
 
 from flask import Flask
 from sqlalchemy import text
+from auth import auth_bp
+from budgets import budgets_bp
+from transactions import transactions_bp
 
 from config import Config
 from extensions import db, migrate
@@ -11,6 +14,10 @@ import models  # noqa: F401  (registers the models so Flask-Migrate can see them
 def create_app(config_class=Config):
     app = Flask(__name__)
     app.config.from_object(config_class)
+
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(budgets_bp)
+    app.register_blueprint(transactions_bp)
 
     db.init_app(app)
     migrate.init_app(app, db)
