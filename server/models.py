@@ -10,6 +10,11 @@ from extensions import db
 
 TRANSACTION_TYPES = ("paybill", "till", "send_money", "airtime", "withdrawal", "other")
 
+# Upper limits catch typos (an extra zero or two) and keep every amount well
+# inside a 32-bit INTEGER column (max 2,147,483,647).
+MAX_BUDGET_CENTS = 1_000_000_000      # KES 10,000,000
+MAX_TRANSACTION_CENTS = 100_000_000   # KES 1,000,000
+
 
 def utc_now():
     return datetime.now(timezone.utc)
@@ -19,6 +24,10 @@ class User(db.Model):
     """A SmartPesa account holder."""
 
     __tablename__ = "users"
+    __table_args__ = (
+        CheckConstraint("length(trim(name)) > 0", name="name_not_blank"),
+        CheckConstraint("email LIKE '%_@_%'", name="email_has_at"),
+    )
 
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
@@ -61,6 +70,14 @@ class Budget(db.Model):
     __tablename__ = "budgets"
     __table_args__ = (
         CheckConstraint("limit_cents >= 0", name="limit_not_negative"),
+        CheckConstraint(f"limit_cents <= {MAX_BUDGET_CENTS}", name="limit_max"),
+        CheckConstraint("length(trim(category)) > 0", name="category_not_blank"),
+        # "YYYY-MM": 7 characters, a dash, month 01-12.
+        CheckConstraint(
+            "length(month) = 7 AND substr(month, 5, 1) = '-' "
+            "AND substr(month, 6, 2) BETWEEN '01' AND '12'",
+            name="month_format",
+        ),
         # One "Food" budget per user per month.
         UniqueConstraint("user_id", "category", "month", name="uq_budgets_user_category_month"),
     )
@@ -107,6 +124,8 @@ class Transaction(db.Model):
     __tablename__ = "transactions"
     __table_args__ = (
         CheckConstraint("amount_cents > 0", name="amount_positive"),
+        CheckConstraint(f"amount_cents <= {MAX_TRANSACTION_CENTS}", name="amount_max"),
+        CheckConstraint("length(trim(description)) > 0", name="description_not_blank"),
         CheckConstraint(
             "transaction_type IN ('" + "', '".join(TRANSACTION_TYPES) + "')",
             name="valid_type",

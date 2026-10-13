@@ -2,8 +2,8 @@
 
 Flask + PostgreSQL REST API for SmartPesa, a budget tracker for M-Pesa spending.
 
-> Status: **Days 1–2 (Member 1) done** — Flask app, SQLAlchemy models and the
-> migration pipeline are in place. CRUD routes come next (Days 3–4).
+> Status: models, migrations, seed data, CORS, error handlers, auth and
+> budget/transaction routes are in place.
 
 ## Tech stack
 
@@ -44,7 +44,10 @@ export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/smartpesa_dev
 cd server
 flask db upgrade
 
-# 4. Run
+# 4. Add demo data (3 users, 2 months of budgets and M-Pesa transactions)
+python seed.py                     # type SEED to confirm; or: python seed.py --yes
+
+# 5. Run
 python app.py                      # http://localhost:5000/api/health
 ```
 
@@ -58,9 +61,9 @@ floating-point rounding errors.
 
 | Table | Key columns | Rules |
 |---|---|---|
-| `users` | `name`, `email`, `phone`, `password_hash` | email and phone unique; password stored hashed only |
-| `budgets` | `user_id` → users, `category`, `limit_cents`, `month` (`YYYY-MM`) | `limit_cents >= 0`; one budget per user + category + month |
-| `transactions` | `user_id` → users, `budget_id` → budgets, `description`, `amount_cents`, `transaction_type`, `mpesa_code`, `occurred_at` | `amount_cents > 0`; type is one of `paybill`, `till`, `send_money`, `airtime`, `withdrawal`, `other`; `mpesa_code` unique |
+| `users` | `name`, `email`, `phone`, `password_hash` | name not blank; email contains `@`; email and phone unique; password stored hashed only |
+| `budgets` | `user_id` → users, `category`, `limit_cents`, `month` (`YYYY-MM`) | `0 <= limit_cents <= 1,000,000,000` (KES 10M); category not blank; month is `YYYY-MM` with month 01–12; one budget per user + category + month |
+| `transactions` | `user_id` → users, `budget_id` → budgets, `description`, `amount_cents`, `transaction_type`, `mpesa_code`, `occurred_at` | `0 < amount_cents <= 100,000,000` (KES 1M); description not blank; type is one of `paybill`, `till`, `send_money`, `airtime`, `withdrawal`, `other`; `mpesa_code` unique |
 
 Relationships:
 
@@ -69,6 +72,20 @@ Relationships:
 - Deleting a user deletes their budgets and transactions (`ON DELETE CASCADE`).
 - Deleting a budget keeps its transactions but clears their `budget_id`
   (`ON DELETE SET NULL`).
+
+## Demo data
+
+`python seed.py` creates three demo users with budgets and transactions for the
+previous and current month. One user stays under budget, one overspends, and
+one is roughly on budget, so analytics has something to show.
+
+| Email | Password |
+|---|---|
+| `wanjiku@smartpesa.local` | `DemoPass123!` |
+| `otieno@smartpesa.local` | `DemoPass123!` |
+| `amina@smartpesa.local` | `DemoPass123!` |
+
+Running it again deletes and recreates only the `@smartpesa.local` users.
 
 ## Changing the models
 

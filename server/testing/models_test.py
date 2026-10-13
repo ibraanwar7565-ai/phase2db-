@@ -1,7 +1,7 @@
 import pytest
 from sqlalchemy.exc import IntegrityError
 
-from models import Budget, Transaction, User
+from models import MAX_BUDGET_CENTS, MAX_TRANSACTION_CENTS, Budget, Transaction, User
 
 
 def test_health_route(app):
@@ -102,3 +102,44 @@ def test_deleting_user_removes_their_data(db, user):
 
     assert Budget.query.count() == 0
     assert Transaction.query.count() == 0
+
+
+@pytest.mark.parametrize("month", ["2026-13", "2026-00", "2026-1", "Oct 2026", "2026/10"])
+def test_budget_month_must_be_yyyy_mm(db, user, month):
+    db.session.add(Budget(user=user, category="Food", limit_cents=100, month=month))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+
+
+def test_budget_limit_has_upper_bound(db, user):
+    db.session.add(Budget(user=user, category="Rent", limit_cents=MAX_BUDGET_CENTS, month="2026-10"))
+    db.session.commit()
+    db.session.add(Budget(user=user, category="Food", limit_cents=MAX_BUDGET_CENTS + 1, month="2026-10"))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+
+
+def test_transaction_amount_has_upper_bound(db, user):
+    db.session.add(Transaction(user=user, description="Car", amount_cents=MAX_TRANSACTION_CENTS))
+    db.session.commit()
+    db.session.add(Transaction(user=user, description="Typo", amount_cents=MAX_TRANSACTION_CENTS + 1))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+
+
+@pytest.mark.parametrize("make", [
+    lambda u: Budget(user=u, category="   ", limit_cents=100, month="2026-10"),
+    lambda u: Transaction(user=u, description="  ", amount_cents=100),
+])
+def test_text_fields_cannot_be_blank(db, user, make):
+    db.session.add(make(user))
+    with pytest.raises(IntegrityError):
+        db.session.commit()
+
+
+def test_email_must_contain_at(db):
+    bad = User(name="No At", email="not-an-email")
+    bad.set_password("x")
+    db.session.add(bad)
+    with pytest.raises(IntegrityError):
+        db.session.commit()
