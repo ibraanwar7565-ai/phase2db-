@@ -7,7 +7,10 @@ from sqlalchemy import text
 from auth import auth_bp
 from budgets import budgets_bp
 from transactions import transactions_bp
-
+from errors import api_error
+from dashboard import dashboard_bp
+from users import users_bp
+from mpesa import mpesa_bp
 from config import Config
 from extensions import db, migrate
 import models  # noqa: F401  (registers the models so Flask-Migrate can see them)
@@ -33,52 +36,25 @@ def create_app(config_class=Config):
     app.register_blueprint(auth_bp)
     app.register_blueprint(budgets_bp)
     app.register_blueprint(transactions_bp)
+    app.register_blueprint(dashboard_bp)
+    app.register_blueprint(users_bp)
+    app.register_blueprint(mpesa_bp)
 
     db.init_app(app)
     migrate.init_app(app, db)
 
-    @app.errorhandler(400)
-    def bad_request(error):
-        return jsonify({
-            "error": {
-                "status": 400,
-                "code": "bad_request",
-                "message": "The request is invalid."
-            }
-        }), 400
+    @app.errorhandler(HTTPException)
+    def handle_http_error(error):
+        # Covers 400, 404, 405, 409... with the same JSON shape.
+        code = error.name.lower().replace(" ", "_")
+        return api_error(error.code, code, error.description)
 
-    @app.errorhandler(404)
-    def not_found(error):
-        return jsonify({
-            "error": {
-                "status": 404,
-                "code": "not_found",
-                "message": "The requested resource was not found."
-            }
-        }), 404
-
-    @app.errorhandler(409)
-    def conflict(error):
-        return jsonify({
-            "error": {
-                "status": 409,
-                "code": "conflict",
-                "message": "The request conflicts with the current state."
-            }
-        }), 409
-
-    @app.errorhandler(500)
-    def internal_server_error(error):
-        app.logger.error("An internal server error occurred.")
-
-        return jsonify({
-            "error": {
-                "status": 500,
-                "code": "internal_server_error",
-                "message": "An unexpected server error occurred."
-            }
-        }), 500
-
+    @app.errorhandler(Exception)
+    def handle_unexpected_error(error):
+        db.session.rollback()
+        app.logger.exception("Unhandled error")
+        return api_error(500, "internal_server_error","An unexpected server error occurred.")
+    
     @app.get("/api/health")
     def health():
         """Confirms the API is up and can reach the database."""
