@@ -1,65 +1,74 @@
+import re
+
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
+
+from errors import api_error
 from extensions import db
-from models import Budget
+from models import Budget, MAX_BUDGET_CENTS
 
 budgets_bp = Blueprint("budgets", __name__, url_prefix="/api/budgets")
+
+MONTH_RE = re.compile(r"\d{4}-(0[1-9]|1[0-2])")
+
+
+def is_int(value):
+    return isinstance(value, int) and not isinstance(value, bool)
+
+
+def validate_fields(data, partial=False):
+    """Validate budget fields. Returns (clean_dict, error_message)."""
+    clean = {}
+
+    if "category" in data or not partial:
+        category = data.get("category")
+        category = category.strip() if isinstance(category, str) else ""
+        if not category or len(category) > 50:
+            return None, "category must contain 1-50 characters"
+        clean["category"] = category
+
+    if "limit_cents" in data or not partial:
+        limit = data.get("limit_cents")
+        if not is_int(limit) or not 0 <= limit <= MAX_BUDGET_CENTS:
+            return None, f"limit_cents must be an integer between 0 and {MAX_BUDGET_CENTS}"
+        clean["limit_cents"] = limit
+
+    if "month" in data or not partial:
+        month = data.get("month")
+        if not isinstance(month, str) or not MONTH_RE.fullmatch(month):
+            return None, "month must use YYYY-MM format, e.g. 2026-10"
+        clean["month"] = month
+
+    return clean, None
 
 
 @budgets_bp.route("", methods=["POST"])
 def create_budget():
-    data = request.get_json(silent=True) or {}
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict):
+        return api_error(400, "bad_request", "Request body must be valid JSON")
 
     user_id = data.get("user_id")
-    category = data.get("category")
-    limit_cents = data.get("limit_cents")
-    month = data.get("month")
+    if not is_int(user_id) or user_id <= 0:
+        return api_error(400, "validation_error", "user_id must be a positive integer")
 
-    if not all([user_id, category, month]) or limit_cents is None:
-        return jsonify({
-            "error": "user_id, category, limit_cents and month are required"
-        }), 400
+    clean, error = validate_fields(data)
+    if error:
+        return api_error(400, "validation_error", error)
 
-    if not isinstance(user_id, int) or isinstance(user_id, bool) or user_id <= 0:
-        return jsonify({"error": "user_id must be a positive integer"}), 400
-
-    if not isinstance(limit_cents, int) or isinstance(limit_cents, bool) or limit_cents < 0:
-        return jsonify({"error": "limit_cents must be a non-negative integer"}), 400
-
-    category = category.strip() if isinstance(category, str) else ""
-    if not category or len(category) > 50:
-        return jsonify({"error": "category must contain 1-50 characters"}), 400
-
-    if not isinstance(month, str) or len(month) != 7:
-        return jsonify({"error": "month must use YYYY-MM format"}), 400
-
-    try:
-        year, month_number = map(int, month.split("-"))
-        if not 1 <= month_number <= 12 or year < 1:
-            raise ValueError
-    except ValueError:
-        return jsonify({"error": "month must be a valid YYYY-MM date"}), 400
-
-    budget = Budget(
-        user_id=user_id,
-        category=category,
-        limit_cents=limit_cents,
-        month=month,
-    )
-
+    budget = Budget(user_id=user_id, **clean)
     try:
         db.session.add(budget)
         db.session.commit()
     except IntegrityError:
         db.session.rollback()
-        return jsonify({
-            "error": "Budget already exists for this category and month, or user does not exist"
-        }), 409
+        return api_error(
+            409, "conflict",
+            "Budget already exists for this category and month, or user does not exist",
+        )
 
-    return jsonify({
-        "message": "Budget created successfully",
-        "budget": budget.to_dict(),
-    }), 201
+    return jsonify({"message": "Budget created successfully",
+                    "budget": budget.to_dict()}), 201
 
 
 @budgets_bp.route("", methods=["GET"])
@@ -68,15 +77,58 @@ def list_budgets():
     month = request.args.get("month")
 
     if not user_id or user_id <= 0:
-        return jsonify({"error": "A valid user_id is required"}), 400
+        return api_error(400, "validation_error", "A valid user_id is required")
 
     query = Budget.query.filter_by(user_id=user_id)
-
     if month:
         query = query.filter_by(month=month)
 
     budgets = query.order_by(Budget.month.desc(), Budget.category.asc()).all()
+    return jsonify({"budgets": [b.to_dict() for b in budgets]}), 200
 
-    return jsonify({
-        "budgets": [budget.to_dict() for budget in budgets]
-    }), 200
+
+@budgets_bp.route("/<int:budget_id>", methods=["GET"])
+def get_budget(budget_id):
+    budget = db.session.get(Budget, budget_id)
+    if budget is None:
+        return api_error(404, "not_found", "Budget not found")
+    return jsonify({"budget": budget.to_dict()}), 200
+
+
+@budgets_bp.route("/<int:budget_id>", methods=["PUT"])
+def update_budget(budget_id):
+    budget = db.session.get(Budget, budget_id)
+    if budget is None:
+        return api_error(404, "not_found", "Budget not found")
+
+    data = request.get_json(silent=True)
+    if not isinstance(data, dict) or not data:
+        return api_error(400, "bad_request", "Provide at least one field to update")
+
+    clean, error = validate_fields(data, partial=True)
+    if error:
+        return api_error(400, "validation_error", error)
+
+    for field, value in clean.items():
+        setattr(budget, field, value)
+
+    try:
+        db.session.commit()
+    except IntegrityError:
+        db.session.rollback()
+        return api_error(409, "conflict",
+                         "Another budget already uses this category and month")
+
+    return jsonify({"message": "Budget updated successfully",
+                    "budget": budget.to_dict()}), 200
+
+
+@budgets_bp.route("/<int:budget_id>", methods=["DELETE"])
+def delete_budget(budget_id):
+    budget = db.session.get(Budget, budget_id)
+    if budget is None:
+        return api_error(404, "not_found", "Budget not found")
+
+    db.session.delete(budget)
+    db.session.commit()
+    return "", 204
