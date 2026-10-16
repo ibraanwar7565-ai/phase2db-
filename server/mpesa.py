@@ -2,11 +2,9 @@ import base64
 import os
 import secrets
 from datetime import datetime, timezone
-
 import requests
 from flask import Blueprint, request, jsonify
 from sqlalchemy.exc import IntegrityError
-
 from errors import api_error
 from extensions import db
 from models import Budget, Transaction, User, MAX_TRANSACTION_CENTS
