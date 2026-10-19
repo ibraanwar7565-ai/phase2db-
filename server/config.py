@@ -10,15 +10,14 @@ BASE_DIR = Path(__file__).resolve().parent
 load_dotenv(BASE_DIR / ".env")
 load_dotenv(BASE_DIR.parent / ".env")
 
+_db_url = os.environ.get("DATABASE_URL")
+if _db_url and _db_url.startswith("postgres://"):
+    _db_url = _db_url.replace("postgres://", "postgresql://", 1)
+
 class Config:
     SECRET_KEY = os.environ.get("SECRET_KEY")
-
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
-
-    SQLALCHEMY_TRACK_MODIFICATIONS = False
-
-    JSON_SORT_KEYS = False
-
+    SQLALCHEMY_DATABASE_URI = _db_url
+    ...
 
 class TestConfig(Config):
     TESTING = True

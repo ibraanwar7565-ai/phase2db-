@@ -14,6 +14,12 @@ from mpesa import mpesa_bp
 from config import Config
 from extensions import db, migrate
 import models  # noqa: F401  (registers the models so Flask-Migrate can see them)
+import os
+
+origins = os.environ.get(
+    "CORS_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+).split(",")
+
 
 
 def create_app(config_class=Config):
@@ -29,10 +35,7 @@ def create_app(config_class=Config):
     CORS(
         app,
         resources={
-            r"/api/*": {"origins": [
-                "http://localhost:5173",
-                "http://127.0.0.1:5173",
-            ]},
+            r"/api/*": {"origins": origins},
         },
     )
 
